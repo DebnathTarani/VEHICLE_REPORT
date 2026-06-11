@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Vehicle Reporting</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="/static/script.js" defer></script>
+  <style>
+    body { font-family: system-ui, Segoe UI, Arial, sans-serif; margin: 16px; }
+    h2 { margin-top: 0; }
+    .toolbar { margin: 12px 0; display: flex; gap: 8px; flex-wrap: wrap; }
+    button { padding: 8px 12px; border: 1px solid #999; background: #f7f7f7; cursor: pointer; border-radius: 6px; }
+    button:hover { background: #eee; }
+    .city-section { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin: 12px 0; }
+    .city-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .city-title { font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+    th { background-color: #f0f0f0; }
+    input, select { width: 100%; box-sizing: border-box; padding: 6px; }
+    .section-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .muted { color: #666; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h2>Vehicle Report Entry</h2>
+
+  <div class="toolbar">
+    <button id="addCityBtn" type="button">➕ Add City</button>
+    <button id="submitBtn" type="button">📤 Submit to DB</button>
+    <button id="excelBtn" type="button">📥 Download Excel</button>
+    <a href="/view_logs" target="_blank"><button type="button">📊 View Logs</button></a>
+    <span class="muted">Tip: For “Work In Progress”, Out Date/Time will be disabled.</span>
+  </div>
+
+  <div id="citySections"></div>
+</body>
+</html>
+

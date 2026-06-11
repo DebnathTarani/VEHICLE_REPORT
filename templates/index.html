@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Vehicle Reporting</title>
+  <script src="/static/xlsx.full.min.js"></script>
+  <script src="/static/script.js" defer></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    button,
+    select {
+      margin: 6px;
+      padding: 6px 12px;
+    }
+
+    .city-section {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-top: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th,
+    td {
+      border: 1px solid #ccc;
+      padding: 6px;
+    }
+
+    th {
+      background-color: #f0f0f0;
+    }
+
+    /* Image Import Styles */
+    .import-btn {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .import-btn:hover {
+      background-color: #45a049;
+    }
+
+    .import-btn:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+
+    /* Modal Overlay */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 90%;
+      max-height: 90%;
+      overflow: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .modal-close {
+      font-size: 24px;
+      cursor: pointer;
+      border: none;
+      background: none;
+    }
+
+    .preview-table {
+      margin-top: 10px;
+    }
+
+    .preview-table th {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    .preview-actions {
+      margin-top: 15px;
+      text-align: right;
+    }
+
+    .loading-spinner {
+      display: none;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .loading-spinner.active {
+      display: block;
+    }
+
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #4CAF50;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .ai-status {
+      font-size: 12px;
+      color: #666;
+      margin-left: 10px;
+    }
+
+    .ai-status.enabled {
+      color: #4CAF50;
+    }
+
+    .ai-status.disabled {
+      color: #f44336;
+    }
+
+    .thinking-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      margin-left: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .thinking-toggle input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: #4CAF50;
+    }
+
+    .thinking-toggle label {
+      cursor: pointer;
+    }
+
+    /* Image Result Card Styles */
+    .image-result-card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      padding: 15px;
+      background: #f9f9f9;
+    }
+
+    .image-result-card.imported {
+      opacity: 0.6;
+      background: #e8f5e9;
+    }
+
+    .image-result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .image-result-title {
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .image-result-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .editable-table input,
+    .editable-table select {
+      width: 100%;
+      padding: 4px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      box-sizing: border-box;
+    }
+
+    .editable-table td {
+      padding: 4px;
+    }
+
+    .imported-badge {
+      background: #4CAF50;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .validation-error {
+      border: 2px solid #f44336 !important;
+      background-color: #ffebee !important;
+    }
+
+    /* Image preview hover zoom */
+    .image-preview-container {
+      position: relative;
+    }
+
+    .image-preview-container img {
+      transition: transform 0.3s ease;
+    }
+
+    .image-preview-container:hover img {
+      transform: scale(2.5);
+      transform-origin: top left;
+      position: relative;
+      z-index: 1000;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Validation Styles */
+    .fetched-model-cell {
+      font-size: 12px;
+      color: #555;
+    }
+
+    .overwrite-btn:hover {
+      background-color: #1976D2 !important;
+    }
+
+    .retry-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      margin-left: 5px;
+      padding: 0;
+    }
+
+    .retry-btn:hover {
+      transform: scale(1.2);
+    }
+
+    .retry-btn.spinning {
+      animation: spin 1s linear infinite;
+      cursor: not-allowed;
+    }
+
+    .overwrite-all-btn {
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .overwrite-all-btn:hover {
+      background-color: #7B1FA2 !important;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>Vehicle Report Entry</h2>
+
+  <div style="margin-bottom: 15px;">
+    <label for="globalEntryDate">Entry Date:</label>
+    <input type="text" id="globalEntryDate" placeholder="DD-MM-YYYY" pattern="\d{2}-\d{2}-\d{4}"
+      onchange="applyGlobalEntryDate()" />
+
+    <label for="citySelect">Select City:</label>
+    <select id="citySelect">
+      <option value="">--Choose--</option>
+      <option value="Hailakandi">Hailakandi</option>
+      <option value="Karimganj">Karimganj</option>
+      <option value="Kalain">Kalain</option>
+      <option value="Jhapirbond">Jhapirbond</option>
+      <option value="Sildubi">Sildubi</option>
+      <option value="Fulertal">Fulertal</option>
+      <option value="Budrail_Yard">Budrail_Yard</option>
+    </select>
+
+    <button id="addCityBtn">➕ Add City</button>
+    <button id="submitBtn">📤 Submit to DB</button>
+    <button id="downloadExcelBtn">📥 Save & Download Excel</button>
+    <a href="/view_logs" target="_blank"><button>📊 View Logs</button></a>
+  </div>
+
+  <div style="margin-bottom: 15px;">
+    <label for="entryDateFilter">View Logs for Entry Date:</label>
+    <input type="text" id="entryDateFilter" placeholder="DD-MM-YYYY" pattern="\d{2}-\d{2}-\d{4}" />
+    <button onclick="viewLogsByDate()">🔍 View Logs by Date</button>
+
+    <!-- Image Import Section -->
+    <span style="margin-left: 20px; border-left: 2px solid #ccc; padding-left: 20px;">
+      <input type="file" id="imageInput" accept="image/*" multiple style="display: none;"
+        onchange="handleMultiImageUpload(this)" />
+      <button id="importImageBtn" class="import-btn" onclick="document.getElementById('imageInput').click()">
+        📷 Import from Images
+      </button>
+      <span id="aiStatus" class="ai-status">Checking AI status...</span>
+      <span class="thinking-toggle">
+        <input type="checkbox" id="thinkingToggle" checked onchange="setThinkingMode(this.checked)" />
+        <label for="thinkingToggle">Enable Thinking</label>
+      </span>
+    </span>
+  </div>
+
+  <div id="citySections"></div>
+
+  <!-- Multi-Image Import Modal -->
+  <div id="importModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 95%; width: 1200px;">
+      <div class="modal-header">
+        <h3>📷 Import from Images</h3>
+        <button class="modal-close" onclick="closeImportModal()">&times;</button>
+      </div>
+
+      <div id="loadingSpinner" class="loading-spinner">
+        <div class="spinner"></div>
+        <p>🤖 AI is analyzing your images...</p>
+        <p id="processingStatus" style="font-size: 12px; color: #666;">Processing image 1 of 1</p>
+      </div>
+
+      <!-- Container for all image results -->
+      <div id="imageResultsContainer" style="display: none;"></div>
+
+      <div id="modalFooter"
+        style="display: none; text-align: right; margin-top: 15px; padding-top: 15px; border-top: 1px solid #ccc;">
+        <button onclick="closeImportModal()">❌ Close</button>
+      </div>
+
+      <div id="errorContent" style="display: none; color: #f44336; padding: 20px;">
+        <p><strong>❌ Error:</strong></p>
+        <p id="errorMessage"></p>
+        <button onclick="closeImportModal()">Close</button>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

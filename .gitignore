@@ -1,0 +1,22 @@
+# Environment files
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Database
+*.db
+
+# Build output
+dist/
+build/
+*.spec
+
+# IDE
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Vehicle Reporting</title>
+  <script src="/static/xlsx.full.min.js"></script>
+  <script src="/static/script.js" defer></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    button, select { margin: 6px; padding: 6px 12px; }
+    .city-section { border: 1px solid #ccc; padding: 10px; margin-top: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 6px; }
+    th { background-color: #f0f0f0; }
+    .voice-section { border: 1px dashed #666; padding: 10px; margin-top: 20px; background: #f9f9f9; }
+  </style>
+</head>
+<body>
+  <h2>Vehicle Report Entry</h2>
+
+  <label for="globalEntryDate">Entry Date:</label>
+  <input type="date" id="globalEntryDate" onchange="applyGlobalEntryDate()" />
+
+  <label for="citySelect">Select City:</label>
+  <select id="citySelect">
+    <option value="">--Choose--</option>
+    <option value="Hailakandi">Hailakandi</option>
+    <option value="Karimganj">Karimganj</option>
+    <option value="Kalain">Kalain</option>
+    <option value="Jhapirbond">Jhapirbond</option>
+    <option value="Sildubi">Sildubi</option>
+    <option value="Fulertal">Fulertal</option>
+    <option value="Budrail_Yard">Budrail_Yard</option>
+  </select>
+
+  <button id="addCityBtn">➕ Add City</button>
+  <button id="submitBtn">📤 Submit to DB</button>
+  <button id="downloadExcelBtn">📥 Save & Download Excel</button>
+  <a href="/view_logs" target="_blank"><button>📊 View Logs</button></a>
+
+  <label for="entryDateFilter">View Logs for Entry Date:</label>
+  <input type="date" id="entryDateFilter" />
+  <button onclick="viewLogsByDate()">🔍 View Logs by Date</button>
+
+  <div id="citySections"></div>
+
+  <!-- Voice dictation section -->
+  <div class="voice-section">
+    <h3>🎤 Voice Dictation</h3>
+    <p>Speak full record like:<br>
+       <em>"City Hailakandi, SR No 12, VRN UP93AB1234, Model Swift, Entry Date 25-11-2025, In Time 10:00, Out Date 26-11-2025, Out Time 18:00, Remarks Delivered"</em>
+    </p>
+    <button onclick="startDictation()">Start Dictation</button>
+    <p id="dictationOutput" style="color:blue;"></p>
+  </div>
+
+  <script>
+
+recognition.onresult = function(event) {
+  const transcript = event.results[0][0].transcript;
+  document.getElementById("dictationOutput").innerText = "You said: " + transcript;
+
+  // Regex patterns for each field
+  const cityMatch = transcript.match(/city\s+([a-zA-Z]+)/i);
+  const srMatch = transcript.match(/sr\s*no\s*(\d+)/i);
+  const vrnMatch = transcript.match(/vrn\s+([A-Z0-9]+)/i);
+  const modelMatch = transcript.match(/model\s+([a-zA-Z0-9]+)/i);
+  const entryDateMatch = transcript.match(/entry\s*date\s+([\d\-]+)/i);
+  const inTimeMatch = transcript.match(/in\s*time\s+([\d:]+)/i);
+  const outDateMatch = transcript.match(/out\s*date\s+([\d\-]+)/i);
+  const outTimeMatch = transcript.match(/out\s*time\s+([\d:]+)/i);
+  const remarksMatch = transcript.match(/remarks?\s+(.+)/i);
+
+  if (cityMatch) document.getElementById("citySelect").value = cityMatch[1];
+  if (srMatch) setHidden("sr_no", srMatch[1]);
+  if (vrnMatch) setHidden("vrn", vrnMatch[1]);
+  if (modelMatch) setHidden("model", modelMatch[1]);
+  if (entryDateMatch) document.getElementById("globalEntryDate").value = entryDateMatch[1];
+  if (inTimeMatch) setHidden("in_time", inTimeMatch[1]);
+  if (outDateMatch) setHidden("out_date", outDateMatch[1]);
+  if (outTimeMatch) setHidden("out_time", outTimeMatch[1]);
+  if (remarksMatch) setHidden("remarks", remarksMatch[1]);
+};
+
+function setHidden(id, value) {
+  let input = document.getElementById(id);
+  if (!input) {
+    input = document.createElement("input");
+    input.type = "text";
+    input.id = id;
+    input.style.display = "none";
+    document.body.appendChild(input);
+  }
+  input.value = value.trim();
+}
+
+    function startDictation() {
+      if (!('webkitSpeechRecognition' in window)) {
+        alert("Speech recognition not supported in this browser.");
+        return;
+      }
+
+      var recognition = new webkitSpeechRecognition();
+      recognition.lang = "en-IN"; // change to "hi-IN" for Hindi
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onresult = function(event) {
+        const transcript = event.results[0][0].transcript;
+        document.getElementById("dictationOutput").innerText = "You said: " + transcript;
+
+        // Split by commas and parse into fields
+        const parts = transcript.split(",");
+        parts.forEach(p => {
+          const segment = p.trim().toLowerCase();
+          if (segment.startsWith("city")) document.getElementById("citySelect").value = segment.replace("city","").trim();
+          if (segment.startsWith("sr no")) {
+            // You may need to add a hidden field for sr_no if not in your form
+            let srInput = document.getElementById("sr_no");
+            if (!srInput) {
+              srInput = document.createElement("input");
+              srInput.type = "text";
+              srInput.id = "sr_no";
+              srInput.style.display = "none";
+              document.body.appendChild(srInput);
+            }
+            srInput.value = segment.replace("sr no","").trim();
+          }
+          if (segment.startsWith("vrn")) {
+            let vrnInput = document.getElementById("vrn");
+            if (!vrnInput) {
+              vrnInput = document.createElement("input");
+              vrnInput.type = "text";
+              vrnInput.id = "vrn";
+              vrnInput.style.display = "none";
+              document.body.appendChild(vrnInput);
+            }
+            vrnInput.value = segment.replace("vrn","").trim();
+          }
+          if (segment.startsWith("model")) {
+            let modelInput = document.getElementById("model");
+            if (!modelInput) {
+              modelInput = document.createElement("input");
+              modelInput.type = "text";
+              modelInput.id = "model";
+              modelInput.style.display = "none";
+              document.body.appendChild(modelInput);
+            }
+            modelInput.value = segment.replace("model","").trim();
+          }
+          if (segment.startsWith("entry date")) document.getElementById("globalEntryDate").value = segment.replace("entry date","").trim();
+          if (segment.startsWith("in time")) {
+            let inTimeInput = document.getElementById("in_time");
+            if (!inTimeInput) {
+              inTimeInput = document.createElement("input");
+              inTimeInput.type = "text";
+              inTimeInput.id = "in_time";
+              inTimeInput.style.display = "none";
+              document.body.appendChild(inTimeInput);
+            }
+            inTimeInput.value = segment.replace("in time","").trim();
+          }
+          if (segment.startsWith("out date")) {
+            let outDateInput = document.getElementById("out_date");
+            if (!outDateInput) {
+              outDateInput = document.createElement("input");
+              outDateInput.type = "text";
+              outDateInput.id = "out_date";
+              outDateInput.style.display = "none";
+              document.body.appendChild(outDateInput);
+            }
+            outDateInput.value = segment.replace("out date","").trim();
+          }
+          if (segment.startsWith("out time")) {
+            let outTimeInput = document.getElementById("out_time");
+            if (!outTimeInput) {
+              outTimeInput = document.createElement("input");
+              outTimeInput.type = "text";
+              outTimeInput.id = "out_time";
+              outTimeInput.style.display = "none";
+              document.body.appendChild(outTimeInput);
+            }
+            outTimeInput.value = segment.replace("out time","").trim();
+          }
+          if (segment.startsWith("remarks")) {
+            let remarksInput = document.getElementById("remarks");
+            if (!remarksInput) {
+              remarksInput = document.createElement("input");
+              remarksInput.type = "text";
+              remarksInput.id = "remarks";
+              remarksInput.style.display = "none";
+              document.body.appendChild(remarksInput);
+            }
+            remarksInput.value = segment.replace("remarks","").trim();
+          }
+        });
+      };
+
+      recognition.start();
+    }
+  </script>
+</body>
+</html>
+

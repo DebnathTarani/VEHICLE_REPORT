@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Vehicle Report Logs</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 6px; }
+    th { background-color: #f0f0f0; }
+  </style>
+</head>
+<body>
+<h2>📋 Vehicle Report Logs{% if filter_date %} for {{ filter_date }}{% endif %}</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th><th>City</th><th>Sr No</th><th>VRN</th><th>Model</th>
+        <th>Entry Date</th><th>In Time</th><th>Out Date</th><th>Out Time</th><th>Remarks</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in entries %}
+      <tr>
+        <td>{{ row[0] }}</td><td>{{ row[1] }}</td><td>{{ row[2] }}</td><td>{{ row[3] }}</td><td>{{ row[4] }}</td>
+        <td>{{ row[5] }}</td><td>{{ row[6] }}</td><td>{{ row[7] }}</td><td>{{ row[8] }}</td><td>{{ row[9] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>
+
