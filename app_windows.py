@@ -49,9 +49,19 @@ if AI_PROVIDER is None and LLAMACPP_ENABLED:
     try:
         response = requests.get(f"{LLAMACPP_HOST}/v1/models", timeout=5)
         if response.status_code == 200:
+            models_data = response.json()
+            actual_model = LLAMACPP_MODEL
+            if isinstance(models_data, dict) and 'data' in models_data:
+                data_list = models_data['data']
+                if data_list and isinstance(data_list, list) and len(data_list) > 0:
+                    model_entry = data_list[0]
+                    if isinstance(model_entry, dict):
+                        actual_model = model_entry.get('id', LLAMACPP_MODEL)
+                    elif isinstance(model_entry, str):
+                        actual_model = model_entry
             AI_PROVIDER = 'llamacpp'
-            AI_CONFIG = {'host': LLAMACPP_HOST, 'model': LLAMACPP_MODEL}
-            print(f"✅ llama.cpp enabled at {LLAMACPP_HOST} with model: {LLAMACPP_MODEL}")
+            AI_CONFIG = {'host': LLAMACPP_HOST, 'model': actual_model}
+            print(f"✅ llama.cpp enabled at {LLAMACPP_HOST} with model: {actual_model}")
         else:
             print(f"⚠️ llama.cpp not responding at {LLAMACPP_HOST}")
     except requests.exceptions.RequestException as e:
@@ -72,6 +82,8 @@ if AI_PROVIDER is None:
         print("⚠️ google-generativeai not installed, Gemini unavailable")
 
 AI_ENABLED = AI_PROVIDER is not None
+AI_VISION_SUPPORTED = None  # None=untested, True/False=cached result
+AI_IMAGE_FORMAT = None  # Cached successful image format name
 print(f"AI Provider: {AI_PROVIDER or 'None'}")
 print(f"AI Thinking: {'Disabled' if AI_DISABLE_THINKING else 'Enabled'}")
 
@@ -167,6 +179,22 @@ def extract_json_from_response(response_text):
                     return result
 
     raise ValueError("Could not extract valid JSON from AI response")
+
+
+def get_image_mime_type(image_data):
+    """Detect image MIME type from image bytes (more reliable than form content-type)"""
+    if image_data[:2] == b'\xff\xd8':
+        return 'image/jpeg'
+    if image_data[:8] == b'\x89PNG\r\n\x1a\n':
+        return 'image/png'
+    if image_data[:6] in (b'GIF87a', b'GIF89a'):
+        return 'image/gif'
+    if image_data[:4] == b'RIFF' and image_data[8:12] == b'WEBP':
+        return 'image/webp'
+    if image_data[:2] == b'BM':
+        return 'image/bmp'
+    return 'image/jpeg'
+
 
 @app.route('/')
 def index():
@@ -314,9 +342,17 @@ def extract_from_image():
     if not disable_thinking:
         disable_thinking = AI_DISABLE_THINKING
 
+    global AI_VISION_SUPPORTED, AI_IMAGE_FORMAT
+    if AI_VISION_SUPPORTED is False:
+        return jsonify({
+            'status': 'error',
+            'message': 'This model does not support image input. Use a vision-capable model or switch AI provider.'
+        }), 400
+
     try:
         image_data = image_file.read()
         image_b64 = base64.b64encode(image_data).decode('utf-8')
+        mime_type = get_image_mime_type(image_data)
 
         prompt = """Analyze this image of a vehicle register/log and extract all vehicle entries.
 
@@ -338,96 +374,112 @@ Return the data as a JSON array. Example format:
 
 IMPORTANT: Return ONLY the JSON array, no other text or markdown formatting."""
 
+        data_uri = f"data:{mime_type};base64,{image_b64}"
+
+        image_formats = [
+            {
+                "name": "text_then_image_url",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": data_uri}}
+                ]
+            },
+            {
+                "name": "image_url_then_text",
+                "content": [
+                    {"type": "image_url", "image_url": {"url": data_uri}},
+                    {"type": "text", "text": prompt}
+                ]
+            },
+            {
+                "name": "images_raw",
+                "content": prompt,
+                "images": [image_b64]
+            },
+            {
+                "name": "images_data_uri",
+                "content": prompt,
+                "images": [data_uri]
+            },
+        ]
+
+        if AI_IMAGE_FORMAT is not None:
+            ordered = [f for f in image_formats if f["name"] == AI_IMAGE_FORMAT]
+            ordered += [f for f in image_formats if f["name"] != AI_IMAGE_FORMAT]
+        else:
+            ordered = image_formats
+
         response_text = None
+        last_error = None
+        used_format = None
 
-        if AI_PROVIDER == 'vllm':
-            body = {
-                "model": AI_CONFIG['model'],
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:{image_file.content_type or 'image/jpeg'};base64,{image_b64}"
-                                }
-                            }
-                        ]
+        if AI_PROVIDER in ('vllm', 'llamacpp'):
+            for fmt in ordered:
+                try:
+                    msg = {"role": "user"}
+                    msg.update(fmt)
+
+                    body = {
+                        "model": AI_CONFIG['model'],
+                        "messages": [msg],
+                        "max_tokens": 4096
                     }
-                ],
-                "max_tokens": 4096
-            }
-            if disable_thinking:
-                body["enable_thinking"] = False
+                    if disable_thinking:
+                        body["enable_thinking"] = False
 
-            vllm_response = requests.post(
-                f"{AI_CONFIG['host']}/v1/chat/completions",
-                json=body,
-                timeout=120
-            )
+                    resp = requests.post(
+                        f"{AI_CONFIG['host']}/v1/chat/completions",
+                        json=body,
+                        timeout=120
+                    )
 
-            if vllm_response.status_code != 200:
-                raise Exception(f"vLLM error: {vllm_response.text}")
+                    if resp.status_code == 200:
+                        response_text = resp.json()['choices'][0]['message']['content'].strip()
+                        used_format = fmt["name"]
+                        break
+                    else:
+                        err_text = resp.text.lower()
+                        last_error = resp.text
+                        if 'does not support image' in err_text or 'image input' in err_text:
+                            continue
+                        raise Exception(f"{AI_PROVIDER} error: {resp.text}")
 
-            response_text = vllm_response.json()['choices'][0]['message']['content'].strip()
-
-        elif AI_PROVIDER == 'llamacpp':
-            body = {
-                "model": AI_CONFIG['model'],
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:{image_file.content_type or 'image/jpeg'};base64,{image_b64}"
-                                }
-                            }
-                        ]
-                    }
-                ],
-                "max_tokens": 4096
-            }
-            if disable_thinking:
-                body["enable_thinking"] = False
-
-            llamacpp_response = requests.post(
-                f"{AI_CONFIG['host']}/v1/chat/completions",
-                json=body,
-                timeout=120
-            )
-
-            if llamacpp_response.status_code != 200:
-                raise Exception(f"llama.cpp error: {llamacpp_response.text}")
-
-            response_text = llamacpp_response.json()['choices'][0]['message']['content'].strip()
+                except Exception as e:
+                    last_error = str(e)
+                    if 'does not support image' in str(e).lower() or 'image input' in str(e).lower():
+                        continue
+                    raise
 
         elif AI_PROVIDER == 'gemini':
             genai = AI_CONFIG['genai']
             model = genai.GenerativeModel('gemini-1.5-flash')
-
             response = model.generate_content([
                 prompt,
-                {
-                    "mime_type": image_file.content_type or "image/jpeg",
-                    "data": image_b64
-                }
+                {"mime_type": mime_type, "data": image_b64}
             ])
             response_text = response.text.strip()
 
+        if response_text is None:
+            if last_error and ('does not support image' in last_error.lower() or 'image input' in last_error.lower()):
+                AI_VISION_SUPPORTED = False
+                return jsonify({
+                    'status': 'error',
+                    'message': 'This model does not support image input. Use a vision-capable model or switch AI provider.'
+                }), 400
+            raise Exception(last_error or "AI provider returned no response")
+
         cleaned_json = extract_json_from_response(response_text)
         extracted_data = json.loads(cleaned_json)
+        AI_VISION_SUPPORTED = True
+        AI_IMAGE_FORMAT = used_format
 
         return jsonify({
             'status': 'success',
             'data': extracted_data,
             'count': len(extracted_data),
             'provider': AI_PROVIDER,
-            'thinking_disabled': disable_thinking
+            'thinking_disabled': disable_thinking,
+            'image_format': used_format
         })
 
     except json.JSONDecodeError as e:
@@ -437,20 +489,33 @@ IMPORTANT: Return ONLY the JSON array, no other text or markdown formatting."""
             'raw_response': response_text if response_text else None
         }), 500
     except Exception as e:
+        err_msg = str(e)
+        if 'does not support image' in err_msg.lower() or 'image input' in err_msg.lower():
+            AI_VISION_SUPPORTED = False
+            return jsonify({
+                'status': 'error',
+                'message': 'This model does not support image input. Use a vision-capable model or switch AI provider.'
+            }), 400
         return jsonify({
             'status': 'error',
-            'message': f'Image processing failed: {str(e)}'
+            'message': f'Image processing failed: {err_msg}'
         }), 500
 
 @app.route('/check_ai_status')
 def check_ai_status():
     """Check if AI extraction is available"""
+    vision_msg = ''
+    if AI_VISION_SUPPORTED is False:
+        vision_msg = ' (vision not supported by model)'
+    elif AI_VISION_SUPPORTED is True:
+        vision_msg = ' (vision ready)'
     return jsonify({
         'ai_enabled': AI_ENABLED,
         'provider': AI_PROVIDER,
         'model': AI_CONFIG.get('model', 'gemini-1.5-flash') if AI_PROVIDER else None,
         'thinking_disabled': AI_DISABLE_THINKING,
-        'message': f'AI Ready ({AI_PROVIDER})' if AI_ENABLED else 'Enable LLM or add GOOGLE_API_KEY in .env'
+        'vision_supported': AI_VISION_SUPPORTED,
+        'message': f'AI Ready ({AI_PROVIDER}){vision_msg}' if AI_ENABLED else 'Enable LLM or add GOOGLE_API_KEY in .env'
     })
 
 if __name__ == '__main__':

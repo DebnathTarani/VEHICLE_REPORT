@@ -92,7 +92,14 @@ function checkAIStatus() {
       if (data.ai_enabled) {
         statusEl.textContent = "✅ " + (data.message || "AI Ready");
         statusEl.className = "ai-status enabled";
-        importBtn.disabled = false;
+        // Disable import button if model doesn't support vision
+        if (data.vision_supported === false) {
+          statusEl.textContent = "⚠️ Model does not support image input";
+          statusEl.className = "ai-status disabled";
+          importBtn.disabled = true;
+        } else {
+          importBtn.disabled = false;
+        }
         // Sync thinking toggle with server config
         if (data.thinking_disabled !== undefined) {
           const toggle = document.getElementById("thinkingToggle");
@@ -115,10 +122,18 @@ function checkAIStatus() {
     });
 }
 
+// Processing lock to prevent re-entry
+let isProcessingImages = false;
+
 // Handle multiple image file uploads
 async function handleMultiImageUpload(input) {
+  if (isProcessingImages) return;
   const files = Array.from(input.files);
   if (files.length === 0) return;
+
+  isProcessingImages = true;
+  const importBtn = document.getElementById("importImageBtn");
+  if (importBtn) importBtn.disabled = true;
 
   // Show modal with loading spinner
   openImportModal();
@@ -169,6 +184,11 @@ async function handleMultiImageUpload(input) {
 
   // Reset file input
   input.value = "";
+
+  // Release processing lock
+  isProcessingImages = false;
+  // Re-check AI status (vision_supported may have been updated)
+  checkAIStatus();
 }
 
 // Convert file to data URL for preview
