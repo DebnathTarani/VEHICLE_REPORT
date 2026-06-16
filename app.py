@@ -49,18 +49,20 @@ if AI_PROVIDER is None and LLAMACPP_ENABLED:
         response = requests.get(f"{LLAMACPP_HOST}/v1/models", timeout=5)
         if response.status_code == 200:
             models_data = response.json()
-            actual_model = LLAMACPP_MODEL
+            server_model = None
             if isinstance(models_data, dict) and 'data' in models_data:
                 data_list = models_data['data']
                 if data_list and isinstance(data_list, list) and len(data_list) > 0:
                     model_entry = data_list[0]
                     if isinstance(model_entry, dict):
-                        actual_model = model_entry.get('id', LLAMACPP_MODEL)
+                        server_model = model_entry.get('id')
                     elif isinstance(model_entry, str):
-                        actual_model = model_entry
+                        server_model = model_entry
+            if server_model and server_model != LLAMACPP_MODEL:
+                print(f"⚠️ Server reports model '{server_model}', using configured '{LLAMACPP_MODEL}'")
             AI_PROVIDER = 'llamacpp'
-            AI_CONFIG = {'host': LLAMACPP_HOST, 'model': actual_model}
-            print(f"✅ llama.cpp enabled at {LLAMACPP_HOST} with model: {actual_model}")
+            AI_CONFIG = {'host': LLAMACPP_HOST, 'model': LLAMACPP_MODEL}
+            print(f"✅ llama.cpp enabled at {LLAMACPP_HOST} with model: {LLAMACPP_MODEL}")
         else:
             print(f"⚠️ llama.cpp not responding at {LLAMACPP_HOST}")
     except requests.exceptions.RequestException as e:
