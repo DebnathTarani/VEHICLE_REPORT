@@ -1,5 +1,4 @@
 # Environment files
-.env
 .env.local
 
 # Python
@@ -20,3 +19,6 @@ build/
 .idea/
 .vscode/
 *.swp
+
+data/
+runs/
