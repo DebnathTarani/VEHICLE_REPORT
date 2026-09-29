@@ -1,0 +1,41 @@
+###############################################################################
+# Docker Compose - Development (overrides prod, dev environment)
+# - Loads .env for environment variables
+# - Volume-mounts source code for live-reload
+# - Flask debug server
+###############################################################################
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_PORT: 5010
+    user: "appuser"
+    ports:
+      - "${APP_PORT:-5010}:5010"
+    env_file:
+      - .env            # Loads local .env into Docker Compose
+    environment:
+      - APP_PORT=5010
+      - VEHICLE_REPORT_DB=/app/data/vehicle_reports.db
+      # --- Pick ONE AI provider ---
+      # Option 1: vLLM
+      # VLLM_ENABLED=true
+      # VLLM_HOST=http://host.docker.internal:8000
+      # VLLM_MODEL=qwen36-fast
+      # Option 2: Gemini (cloud only)
+      # GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      # Option 3: llama.cpp (local)
+      # LLAMACPP_ENABLED=true
+      # LLAMACPP_HOST=http://host.docker.internal:8000
+      # LLAMACPP_MODEL=Qwen3-VL-30B:Instruct:Q4_K_XL
+      AI_DISABLE_THINKING=false
+    volumes:
+      - .:/app
+      - app-data:/app/data
+    working_dir: /app
+    command: python app.py
+
+volumes:
+  app-data:

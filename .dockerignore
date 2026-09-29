@@ -1,0 +1,45 @@
+# Slate Sensitive files
+.git
+.gitignore
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.class
+.env.local
+.env.*.local
+
+# Untracked editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Backup files (keep one in host for safety)
+*_BKUP
+*_BKP
+*_bkp_
+*voice*
+*_VOICE*
+
+# Temp/test files
+test.py
+*.log
+*.csv
+
+# OS garbage files
+.DS_Store
+
+# Vehicle report specific
+noxfile.py
+noxfile.mypy.py
+noxfile.cov.py
+
+# Test data
+sample_image/
+
+# Large generated files
+Vehicle_report_*.xlsx

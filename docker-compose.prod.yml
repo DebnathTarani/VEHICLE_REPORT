@@ -1,0 +1,48 @@
+###############################################################################
+# Docker Compose - Production
+# - Loads .env for environment variables
+# - Runs under gunicorn (WSGI server)
+# - Health-check enabled, resource limits applied
+###############################################################################
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_PORT: 5010
+    ports:
+      - "${APP_PORT:-5010}:5010"
+    env_file:
+      - .env
+    environment:
+      - APP_PORT=5010
+      - VEHICLE_REPORT_DB=/app/data/vehicle_reports.db
+      # --- Pick ONE AI provider ---
+      # Option 1: vLLM
+      # VLLM_ENABLED=true
+      # VLLM_HOST=http://host.docker.internal:8000
+      # VLLM_MODEL=qwen36-fast
+      # Option 2: Gemini (cloud only)
+      # GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      # Option 3: llama.cpp (local)
+      # LLAMACPP_ENABLED=true
+      # LLAMACPP_HOST=http://host.docker.internal:8000
+      # LLAMACPP_MODEL=Qwen3-VL-30B:Instruct:Q4_K_XL
+      AI_DISABLE_THINKING=false
+    command: gunicorn -c gunicorn.conf.py --timeout 120 --max-requests 0 wsgi:app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5010/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 512m
+
+volumes:
+  app-data:
