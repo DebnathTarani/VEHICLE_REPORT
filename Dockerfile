@@ -29,9 +29,6 @@ COPY pyproject.toml README.md ./
 # Install Python dependencies with uv
 RUN uv pip install --system -r pyproject.toml
 
-# Install the project as an editable package (makes `python -m app` work)
-RUN uv pip install --system .
-
 # Create a non-root user and directory for the SQLite database
 RUN useradd --create-home --shell /bin/bash appuser && \
     mkdir -p /data && \
