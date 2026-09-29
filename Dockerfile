@@ -11,6 +11,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     APP_PORT=5010 \
+    PATH="/app/.venv/bin:$PATH" \
     VEHICLE_REPORT_DB=/app/data/vehicle_reports.db
 
 # Minimal system runtime dependencies
@@ -20,10 +21,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Leverage uv.lock and pyproject.toml for deterministic dependency caching
+# Install project dependencies into /app/.venv
 COPY pyproject.toml uv.lock ./
-RUN uv export --frozen --no-dev -o requirements.txt && \
-    uv pip install --system --no-cache -r requirements.txt
+RUN uv sync --frozen --no-dev --no-install-project
 
 # Create non-root user and persistent SQLite directory
 RUN useradd --create-home --shell /bin/bash appuser && \
@@ -39,5 +39,4 @@ USER appuser
 
 EXPOSE ${APP_PORT}
 
-# Production entrypoint using gunicorn
 CMD ["gunicorn", "-c", "gunicorn.conf.py", "app:app"]
