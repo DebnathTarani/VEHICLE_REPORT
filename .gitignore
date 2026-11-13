@@ -20,5 +20,5 @@ build/
 .vscode/
 *.swp
 
-data/
+#data/
 runs/
