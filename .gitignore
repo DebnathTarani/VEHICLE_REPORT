@@ -8,7 +8,7 @@ __pycache__/
 *.pyd
 
 # Database
-*.db
+#*.db
 
 # Build output
 dist/
