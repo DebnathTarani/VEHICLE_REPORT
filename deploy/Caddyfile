@@ -1,0 +1,17 @@
+# Caddy reverse-proxies the app and handles TLS automatically when a real
+# domain is set via CADDY_SITE_ADDRESS in deploy/.env (e.g. CADDY_SITE_ADDRESS=reports.example.com).
+# Default (:80) is for local testing without certificates.
+{$CADDY_SITE_ADDRESS::80} {
+	encode gzip zstd
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+	# large register photos
+	request_body {
+		max_size 100MB
+	}
+	reverse_proxy app:8000
+}

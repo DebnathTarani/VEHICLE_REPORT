@@ -1,24 +1,28 @@
-# Environment files
-.env.local
-
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
-# Database
-#*.db
-
-# Build output
+# Node
+node_modules/
 dist/
-build/
-*.spec
 
-# IDE
-.idea/
-.vscode/
-*.swp
+# Runtime data
+data/
+*.db
+*.sqlite
+ml/golden/**/report.json
+ml_eval/report.json
+*.xlsx
 
-#data/
-runs/
+# Env
+.env
+.env.*
+
+# OS / editor / agent artifacts
+.DS_Store
+.opencode/
+design/

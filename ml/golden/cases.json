@@ -1,0 +1,70 @@
+[
+  {
+    "case": "case_001",
+    "image": "case_001/image.png",
+    "location_id": 1,
+    "expected_rows": [
+      {
+        "vrn": "AS-01-AB-1234",
+        "model": "MARUTI BOLERO",
+        "entry_date": "07-02-2026",
+        "in_time": "10:30",
+        "out_date": "",
+        "out_time": "",
+        "status": "in_progress"
+      },
+      {
+        "vrn": "NL05C 4521",
+        "model": "TATA ACE",
+        "entry_date": "07-02-2026",
+        "in_time": "11:15",
+        "out_date": "07-02-2026",
+        "out_time": "14:45",
+        "status": "work_done"
+      },
+      {
+        "vrn": "AS-02-C-9911",
+        "model": "MAHINDRA SCORPIO",
+        "entry_date": "07-02-2026",
+        "in_time": "12:05",
+        "out_date": "",
+        "out_time": "",
+        "status": "in_progress"
+      }
+    ]
+  },
+  {
+    "case": "case_002",
+    "image": "case_002/image.png",
+    "location_id": 2,
+    "expected_rows": [
+      {
+        "vrn": "ML04 EF 5678",
+        "model": "TATA SUMO",
+        "entry_date": "08-02-2026",
+        "in_time": "09:40",
+        "out_date": "08-02-2026",
+        "out_time": "12:10",
+        "status": "work_done"
+      },
+      {
+        "vrn": "TR01J 0012",
+        "model": "FORCE TEMPO",
+        "entry_date": "08-02-2026",
+        "in_time": "10:05",
+        "out_date": "",
+        "out_time": "",
+        "status": "in_progress"
+      },
+      {
+        "vrn": "AS-01-B-0455",
+        "model": "TATA ACE GOLD",
+        "entry_date": "08-02-2026",
+        "in_time": "11:20",
+        "out_date": "08-02-2026",
+        "out_time": "13:55",
+        "status": "work_done"
+      }
+    ]
+  }
+]

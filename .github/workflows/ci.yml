@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install
+        run: uv sync --frozen --extra ml --extra dev
+      - name: Lint
+        run: uv run ruff check app tests scripts ml_eval
+      - name: Tests
+        run: uv run pytest -q
+      - name: Alembic baseline check
+        run: |
+          DATABASE_URL="sqlite+aiosqlite:////tmp/ci.db" uv run alembic upgrade head
+          uv run python -c "import sqlite3;t=[r[0] for r in sqlite3.connect('/tmp/ci.db').execute(\"select name from sqlite_master where type='table'\")];assert 'vehicle_entries' in t"
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Unit tests
+        run: npm run test
+      - name: Typecheck + build
+        run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t vehrep-ci -f deploy/Dockerfile .
